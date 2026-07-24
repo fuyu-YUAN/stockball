@@ -1,0 +1,4 @@
+## 忽略 VS 编译输出
+Stockball/bin/
+Stockball/obj/
+.vs/

@@ -1,0 +1,27 @@
+﻿<Window x:Class="Stockball.MainWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="StockBall" SizeToContent="WidthAndHeight"
+        WindowStyle="None" AllowsTransparency="True" Background="Transparent"
+        Topmost="True" ShowInTaskbar="False"
+        MouseLeftButtonDown="Window_MouseLeftButtonDown">
+    <!-- Background 用 #01000000 近乎透明，但能接收鼠标点击/拖动 -->
+    <StackPanel x:Name="Root" Background="#01000000"
+                VerticalAlignment="Center" HorizontalAlignment="Center"
+                Margin="4">
+        <TextBlock x:Name="NameText" Text="加载中" Foreground="White"
+                   FontSize="12" HorizontalAlignment="Center"/>
+        <TextBlock x:Name="PriceText" Text="--" Foreground="White"
+                   FontWeight="Bold" HorizontalAlignment="Center"/>
+        <TextBlock x:Name="ChangeText" Text="--"
+                   HorizontalAlignment="Center"/>
+        <StackPanel.ContextMenu>
+            <ContextMenu>
+                <MenuItem Header="字体放大" Click="FontBigger_Click"/>
+                <MenuItem Header="字体缩小" Click="FontSmaller_Click"/>
+                <MenuItem Header="切换股票" Click="ChangeStock_Click"/>
+                <MenuItem Header="退出" Click="Exit_Click"/>
+            </ContextMenu>
+        </StackPanel.ContextMenu>
+    </StackPanel>
+</Window>
