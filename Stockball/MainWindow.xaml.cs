@@ -1,9 +1,12 @@
 ﻿using System;
+using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 using System.Net.Http;
 using System.Text;
 using System.Threading.Tasks;
 using System.Windows;
+using System.Windows.Controls;
 using System.Windows.Input;
 using System.Windows.Media;
 using System.Windows.Threading;
@@ -14,10 +17,15 @@ namespace Stockball
     {
         private readonly HttpClient _http = new HttpClient();
         private readonly DispatcherTimer _timer = new DispatcherTimer();
-        private string _stockCode = "sh600519";
+
+        // 股票代码列表（最多3只）
+        private List<string> _stockCodes = new List<string> { "sh600519" };
         private double _baseFontSize = 14;
 
-        // 配置文件路径（放在 exe 同目录）
+        // 每只股票对应的三个文字控件
+        private readonly List<(TextBlock name, TextBlock price, TextBlock change)> _rows
+            = new List<(TextBlock, TextBlock, TextBlock)>();
+
         private readonly string _configPath = Path.Combine(
             AppDomain.CurrentDomain.BaseDirectory, "stockball.config");
 
@@ -27,13 +35,65 @@ namespace Stockball
             _http.DefaultRequestHeaders.Add("Referer", "https://finance.sina.com.cn");
             Encoding.RegisterProvider(CodePagesEncodingProvider.Instance);
 
-            LoadConfig();  // 启动时读取上次的设置
-            ApplyFontSize();
+            LoadConfig();
+            BuildRows();
 
-            _timer.Interval = TimeSpan.FromSeconds(5);
+            _timer.Interval = TimeSpan.FromSeconds(3);
             _timer.Tick += async (s, e) => await RefreshAsync();
             _timer.Start();
             Loaded += async (s, e) => await RefreshAsync();
+        }
+
+        // 根据股票数量动态生成显示行
+        private void BuildRows()
+        {
+            StockList.Children.Clear();
+            _rows.Clear();
+
+            foreach (var _ in _stockCodes)
+            {
+                var panel = new StackPanel { Margin = new Thickness(0, 2, 0, 2) };
+
+                var name = new TextBlock
+                {
+                    Text = "加载中",
+                    Foreground = Brushes.White,
+                    FontSize = _baseFontSize * 0.8,
+                    HorizontalAlignment = HorizontalAlignment.Center
+                };
+                var price = new TextBlock
+                {
+                    Text = "--",
+                    Foreground = Brushes.White,
+                    FontWeight = FontWeights.Bold,
+                    FontSize = _baseFontSize * 1.1,
+                    HorizontalAlignment = HorizontalAlignment.Center
+                };
+                var change = new TextBlock
+                {
+                    Text = "--",
+                    Foreground = Brushes.White,
+                    FontSize = _baseFontSize * 0.9,
+                    HorizontalAlignment = HorizontalAlignment.Center
+                };
+
+                panel.Children.Add(name);
+                panel.Children.Add(price);
+                panel.Children.Add(change);
+                StockList.Children.Add(panel);
+
+                _rows.Add((name, price, change));
+            }
+        }
+
+        private void ApplyFontSize()
+        {
+            foreach (var row in _rows)
+            {
+                row.name.FontSize = _baseFontSize * 0.8;
+                row.price.FontSize = _baseFontSize * 1.1;
+                row.change.FontSize = _baseFontSize * 0.9;
+            }
         }
 
         private void LoadConfig()
@@ -43,12 +103,23 @@ namespace Stockball
                 if (File.Exists(_configPath))
                 {
                     var lines = File.ReadAllLines(_configPath);
-                    if (lines.Length >= 1) _stockCode = lines[0];
+                    if (lines.Length >= 1 && !string.IsNullOrWhiteSpace(lines[0]))
+                    {
+                        _stockCodes = lines[0]
+                            .Split(new[] { ',' }, StringSplitOptions.RemoveEmptyEntries)
+                            .Select(s => s.Trim())
+                            .Where(s => s.Length > 0)
+                            .Take(3)
+                            .ToList();
+                    }
                     if (lines.Length >= 2 && double.TryParse(lines[1], out var fontSize))
                         _baseFontSize = fontSize;
                 }
             }
-            catch { /* 读取失败就用默认值 */ }
+            catch { }
+
+            if (_stockCodes.Count == 0)
+                _stockCodes.Add("sh600519");
         }
 
         private void SaveConfig()
@@ -56,54 +127,56 @@ namespace Stockball
             try
             {
                 File.WriteAllLines(_configPath, new[] {
-                    _stockCode,
+                    string.Join(",", _stockCodes),
                     _baseFontSize.ToString()
                 });
             }
-            catch { /* 保存失败不影响使用 */ }
-        }
-
-        private void ApplyFontSize()
-        {
-            NameText.FontSize = _baseFontSize * 0.8;
-            PriceText.FontSize = _baseFontSize * 1.1;
-            ChangeText.FontSize = _baseFontSize * 0.9;
+            catch { }
         }
 
         private async Task RefreshAsync()
         {
+            for (int i = 0; i < _stockCodes.Count && i < _rows.Count; i++)
+            {
+                await RefreshOneAsync(_stockCodes[i], _rows[i]);
+            }
+        }
+
+        private async Task RefreshOneAsync(string code,
+            (TextBlock name, TextBlock price, TextBlock change) row)
+        {
             try
             {
                 var bytes = await _http.GetByteArrayAsync(
-                    $"https://hq.sinajs.cn/list={_stockCode}");
+                    $"https://hq.sinajs.cn/list={code}");
                 var text = Encoding.GetEncoding("GBK").GetString(bytes);
                 var start = text.IndexOf('"') + 1;
                 var end = text.LastIndexOf('"');
-                if (end <= start) { NameText.Text = "无数据"; return; }
+                if (end <= start) { row.name.Text = "无数据"; return; }
 
                 var parts = text.Substring(start, end - start).Split(',');
-                if (parts.Length < 4) { NameText.Text = "无数据"; return; }
+                if (parts.Length < 4) { row.name.Text = "无数据"; return; }
 
                 string name = parts[0];
                 double prevClose = double.Parse(parts[2]);
                 double price = double.Parse(parts[3]);
                 double changePct = prevClose == 0 ? 0 : (price - prevClose) / prevClose * 100;
 
-                NameText.Text = name;
-                PriceText.Text = price.ToString("F2");
-                ChangeText.Text = (changePct >= 0 ? "+" : "") + changePct.ToString("F2") + "%";
+                row.name.Text = name;
+                row.price.Text = price.ToString("F2");
+                row.change.Text = (changePct >= 0 ? "+" : "") + changePct.ToString("F2") + "%";
 
                 var color = changePct >= 0
                     ? Color.FromRgb(0xE0, 0x30, 0x30)
                     : Color.FromRgb(0x18, 0xA0, 0x50);
                 var brush = new SolidColorBrush(color);
-                NameText.Foreground = brush;
-                PriceText.Foreground = brush;
-                ChangeText.Foreground = brush;
+                row.name.Foreground = brush;
+                row.price.Foreground = brush;
+                row.change.Foreground = brush;
             }
             catch
             {
-                NameText.Text = "网络错误";
+                row.name.Text = "网络错误";
             }
         }
 
@@ -111,14 +184,14 @@ namespace Stockball
         {
             _baseFontSize += 2;
             ApplyFontSize();
-            SaveConfig();  // 保存设置
+            SaveConfig();
         }
 
         private void FontSmaller_Click(object sender, RoutedEventArgs e)
         {
             if (_baseFontSize > 6) _baseFontSize -= 2;
             ApplyFontSize();
-            SaveConfig();  // 保存设置
+            SaveConfig();
         }
 
         private void Window_MouseLeftButtonDown(object sender, MouseButtonEventArgs e)
@@ -128,13 +201,27 @@ namespace Stockball
 
         private async void ChangeStock_Click(object sender, RoutedEventArgs e)
         {
+            var current = string.Join(",", _stockCodes);
             var input = Microsoft.VisualBasic.Interaction.InputBox(
-                "输入股票代码（如 sh600519、sz000001）：", "切换股票", _stockCode);
+                "输入股票代码，用英文逗号分隔，最多3只：\n例如 sh600519,sz000001,sh601318",
+                "设置股票", current);
+
             if (!string.IsNullOrWhiteSpace(input))
             {
-                _stockCode = input.Trim();
-                SaveConfig();  // 保存设置
-                await RefreshAsync();
+                var codes = input
+                    .Split(new[] { ',' }, StringSplitOptions.RemoveEmptyEntries)
+                    .Select(s => s.Trim())
+                    .Where(s => s.Length > 0)
+                    .Take(3)
+                    .ToList();
+
+                if (codes.Count > 0)
+                {
+                    _stockCodes = codes;
+                    SaveConfig();
+                    BuildRows();          // 重建显示行
+                    await RefreshAsync();
+                }
             }
         }
 
