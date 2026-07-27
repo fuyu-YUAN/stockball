@@ -4,16 +4,14 @@
         Title="StockBall" SizeToContent="WidthAndHeight"
         WindowStyle="None" AllowsTransparency="True" Background="Transparent"
         Topmost="True" ShowInTaskbar="False"
-        MouseLeftButtonDown="Window_MouseLeftButtonDown">
+        MouseLeftButtonDown="Window_MouseLeftButtonDown"
+        MouseWheel="Window_MouseWheel">
     <StackPanel x:Name="Root" Background="#01000000"
                 VerticalAlignment="Center" HorizontalAlignment="Center"
                 Margin="4">
-        <!-- 每只股票一行，运行时动态生成 -->
         <StackPanel x:Name="StockList"/>
         <StackPanel.ContextMenu>
             <ContextMenu>
-                <MenuItem Header="字体放大" Click="FontBigger_Click"/>
-                <MenuItem Header="字体缩小" Click="FontSmaller_Click"/>
                 <MenuItem Header="设置股票（最多3只）" Click="ChangeStock_Click"/>
                 <MenuItem Header="退出" Click="Exit_Click"/>
             </ContextMenu>

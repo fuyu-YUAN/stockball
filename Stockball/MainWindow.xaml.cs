@@ -18,11 +18,9 @@ namespace Stockball
         private readonly HttpClient _http = new HttpClient();
         private readonly DispatcherTimer _timer = new DispatcherTimer();
 
-        // 股票代码列表（最多3只）
         private List<string> _stockCodes = new List<string> { "sh600519" };
         private double _baseFontSize = 14;
 
-        // 每只股票对应的三个文字控件
         private readonly List<(TextBlock name, TextBlock price, TextBlock change)> _rows
             = new List<(TextBlock, TextBlock, TextBlock)>();
 
@@ -38,13 +36,12 @@ namespace Stockball
             LoadConfig();
             BuildRows();
 
-            _timer.Interval = TimeSpan.FromSeconds(3);
+            _timer.Interval = TimeSpan.FromSeconds(5);
             _timer.Tick += async (s, e) => await RefreshAsync();
             _timer.Start();
             Loaded += async (s, e) => await RefreshAsync();
         }
 
-        // 根据股票数量动态生成显示行
         private void BuildRows()
         {
             StockList.Children.Clear();
@@ -180,18 +177,20 @@ namespace Stockball
             }
         }
 
-        private void FontBigger_Click(object sender, RoutedEventArgs e)
+        // Ctrl + 滚轮调整字体
+        private void Window_MouseWheel(object sender, MouseWheelEventArgs e)
         {
-            _baseFontSize += 2;
-            ApplyFontSize();
-            SaveConfig();
-        }
+            if (Keyboard.Modifiers == ModifierKeys.Control)
+            {
+                if (e.Delta > 0)
+                    _baseFontSize += 1;
+                else if (_baseFontSize > 6)
+                    _baseFontSize -= 1;
 
-        private void FontSmaller_Click(object sender, RoutedEventArgs e)
-        {
-            if (_baseFontSize > 6) _baseFontSize -= 2;
-            ApplyFontSize();
-            SaveConfig();
+                ApplyFontSize();
+                SaveConfig();
+                e.Handled = true;
+            }
         }
 
         private void Window_MouseLeftButtonDown(object sender, MouseButtonEventArgs e)
@@ -219,7 +218,7 @@ namespace Stockball
                 {
                     _stockCodes = codes;
                     SaveConfig();
-                    BuildRows();          // 重建显示行
+                    BuildRows();
                     await RefreshAsync();
                 }
             }
