@@ -15,11 +15,14 @@ namespace Stockball
 {
     public partial class MainWindow : Window
     {
+        private const string ShanghaiIndexCode = "sh000001";
+
         private readonly HttpClient _http = new HttpClient();
         private readonly DispatcherTimer _timer = new DispatcherTimer();
 
         private List<string> _stockCodes = new List<string> { "sh600519" };
         private double _baseFontSize = 14;
+        private Orientation _layoutOrientation = Orientation.Vertical;
 
         private readonly List<(TextBlock name, TextBlock price, TextBlock change)> _rows
             = new List<(TextBlock, TextBlock, TextBlock)>();
@@ -34,6 +37,7 @@ namespace Stockball
             Encoding.RegisterProvider(CodePagesEncodingProvider.Instance);
 
             LoadConfig();
+            ApplyLayoutOrientation();
             BuildRows();
 
             _timer.Interval = TimeSpan.FromSeconds(5);
@@ -47,9 +51,14 @@ namespace Stockball
             StockList.Children.Clear();
             _rows.Clear();
 
-            foreach (var _ in _stockCodes)
+            foreach (var _ in _stockCodes.Prepend(ShanghaiIndexCode))
             {
-                var panel = new StackPanel { Margin = new Thickness(0, 2, 0, 2) };
+                var panel = new StackPanel
+                {
+                    Margin = _layoutOrientation == Orientation.Horizontal
+                        ? new Thickness(4, 2, 4, 2)
+                        : new Thickness(0, 2, 0, 2)
+                };
 
                 var name = new TextBlock
                 {
@@ -111,6 +120,8 @@ namespace Stockball
                     }
                     if (lines.Length >= 2 && double.TryParse(lines[1], out var fontSize))
                         _baseFontSize = fontSize;
+                    if (lines.Length >= 3 && Enum.TryParse(lines[2], out Orientation orientation))
+                        _layoutOrientation = orientation;
                 }
             }
             catch { }
@@ -125,7 +136,8 @@ namespace Stockball
             {
                 File.WriteAllLines(_configPath, new[] {
                     string.Join(",", _stockCodes),
-                    _baseFontSize.ToString()
+                    _baseFontSize.ToString(),
+                    _layoutOrientation.ToString()
                 });
             }
             catch { }
@@ -133,9 +145,10 @@ namespace Stockball
 
         private async Task RefreshAsync()
         {
-            for (int i = 0; i < _stockCodes.Count && i < _rows.Count; i++)
+            var displayCodes = _stockCodes.Prepend(ShanghaiIndexCode).ToList();
+            for (int i = 0; i < displayCodes.Count && i < _rows.Count; i++)
             {
-                await RefreshOneAsync(_stockCodes[i], _rows[i]);
+                await RefreshOneAsync(displayCodes[i], _rows[i]);
             }
         }
 
@@ -196,6 +209,31 @@ namespace Stockball
         private void Window_MouseLeftButtonDown(object sender, MouseButtonEventArgs e)
         {
             DragMove();
+        }
+
+        private void ApplyLayoutOrientation()
+        {
+            StockList.Orientation = _layoutOrientation;
+            HorizontalLayoutMenuItem.IsChecked = _layoutOrientation == Orientation.Horizontal;
+            VerticalLayoutMenuItem.IsChecked = _layoutOrientation == Orientation.Vertical;
+        }
+
+        private void SetLayoutOrientation(Orientation orientation)
+        {
+            _layoutOrientation = orientation;
+            ApplyLayoutOrientation();
+            BuildRows();
+            SaveConfig();
+        }
+
+        private void HorizontalLayout_Click(object sender, RoutedEventArgs e)
+        {
+            SetLayoutOrientation(Orientation.Horizontal);
+        }
+
+        private void VerticalLayout_Click(object sender, RoutedEventArgs e)
+        {
+            SetLayoutOrientation(Orientation.Vertical);
         }
 
         private async void ChangeStock_Click(object sender, RoutedEventArgs e)

@@ -1,19 +1,39 @@
 ﻿<Window x:Class="Stockball.MainWindow"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-        Title="StockBall" SizeToContent="WidthAndHeight"
-        WindowStyle="None" AllowsTransparency="True" Background="Transparent"
-        Topmost="True" ShowInTaskbar="False"
+        Title="StockBall"
+        SizeToContent="WidthAndHeight"
+        WindowStyle="None"
+        AllowsTransparency="True"
+        Background="Transparent"
+        Topmost="True"
+        ShowInTaskbar="False"
         MouseLeftButtonDown="Window_MouseLeftButtonDown"
         MouseWheel="Window_MouseWheel">
-    <StackPanel x:Name="Root" Background="#01000000"
-                VerticalAlignment="Center" HorizontalAlignment="Center"
+    <StackPanel x:Name="Root"
+            Background="#01000000"
+                VerticalAlignment="Center"
+            HorizontalAlignment="Center"
                 Margin="4">
         <StackPanel x:Name="StockList"/>
         <StackPanel.ContextMenu>
             <ContextMenu>
-                <MenuItem Header="设置股票（最多3只）" Click="ChangeStock_Click"/>
-                <MenuItem Header="退出" Click="Exit_Click"/>
+                <MenuItem Header="设置股票（最多3只）"
+                        Click="ChangeStock_Click"/>
+                <MenuItem Header="排列方式">
+                    <MenuItem x:Name="HorizontalLayoutMenuItem"
+                            Header="横向排列"
+                              IsCheckable="True"
+                            Click="HorizontalLayout_Click"/>
+                    <MenuItem x:Name="VerticalLayoutMenuItem"
+                            Header="竖向排列"
+                              IsCheckable="True"
+                            IsChecked="True"
+                            Click="VerticalLayout_Click"/>
+                </MenuItem>
+                <Separator/>
+                <MenuItem Header="退出"
+                        Click="Exit_Click"/>
             </ContextMenu>
         </StackPanel.ContextMenu>
     </StackPanel>
